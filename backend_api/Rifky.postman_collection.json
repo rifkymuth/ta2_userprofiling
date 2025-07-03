@@ -1,0 +1,104 @@
+{
+	"info": {
+		"_postman_id": "3c4ab6fe-19b7-409c-b178-4a769a737cb1",
+		"name": "TA2",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "27889707"
+	},
+	"item": [
+		{
+			"name": "similarity",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "text",
+							"value": "Kondisi emosional",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://192.168.208.158:5295/similarity",
+					"protocol": "http",
+					"host": [
+						"192",
+						"168",
+						"208",
+						"158"
+					],
+					"port": "5295",
+					"path": [
+						"similarity"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "predict_sentiment",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "/D:/Kuliah/Rifky - Full program setelah revisi/backend_api/data_hasil_vector.csv"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5295/predict_sentiment",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5295",
+					"path": [
+						"predict_sentiment"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "topic_modelling",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:5295/topic_modelling",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5295",
+					"path": [
+						"topic_modelling"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "topic_classification",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		}
+	]
+}
