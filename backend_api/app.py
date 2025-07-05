@@ -5,8 +5,8 @@ import nltk
 import pandas as pd
 import numpy as np
 from machine_learning import (
-    load_model,
     sentiment_predict_indobert_model,
+    sentiment_predict_indodistil_model_new,
     topic_classification_indobert_model,
     IndoBERTClass,
 )
@@ -78,15 +78,25 @@ def predict_sentiment():
     print("\n=== Preprocessing done!")
     print("data     :", df["Tweet"].sample(5))
 
-    # Prediction
+    # # Prediction
+    # try:
+    #     # Load indobert sentiment model from local
+    #     indobert_model = load_model(PATH + "model_indobert_sentiment_analysis.pkl")
+
+    #     print("\n=== Predicting sentiments...")
+    #     df = sentiment_predict_indobert_model(df, indobert_model)
+
+    #     df = df.rename(columns={"text": "tweet", "Tweet": "text"})  # fix column names
+
+    #     df.to_csv(PATH + "hasil_sentimen.csv", index=False)
+    # except Exception as e:
+    #     return returnAPI(500, "Error", f"{e}")
+
     try:
-        # Load indobert sentiment model from local
-        indobert_model = load_model(PATH + "model_indobert_sentiment_analysis.pkl")
+        df = df.rename(columns={"text": "tweet", "Tweet": "text"})  # fix column names
 
         print("\n=== Predicting sentiments...")
-        df = sentiment_predict_indobert_model(df, indobert_model)
-
-        df = df.rename(columns={"text": "tweet", "Tweet": "text"})  # fix column names
+        df = sentiment_predict_indodistil_model_new(df)
 
         df.to_csv(PATH + "hasil_sentimen.csv", index=False)
     except Exception as e:

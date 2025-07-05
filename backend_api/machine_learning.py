@@ -188,6 +188,40 @@ def sentiment_predict_indobert_model(data, model):
     return data
 
 
+def sentiment_predict_indodistil_model_new(data):
+    # constant
+    SENTIMENT_PREDICT_MODEL_PATH = ROOT_PATH + "/my_indodistilbert_sentimen"
+
+    data["text"] = data["text"].astype(str)
+
+    # tokenized input with BertTokenizer
+    tokenized_input = tokenizer(
+        data["text"].tolist(), return_tensors="pt", truncation=True, padding=True
+    )
+
+    model = AutoModelForSequenceClassification.from_pretrained(
+        SENTIMENT_PREDICT_MODEL_PATH
+    )
+
+    # Forward pass
+    model.eval()
+
+    # Forward pass
+    with torch.no_grad():
+        outputs = model(**tokenized_input)
+
+        # The logits (raw model output)
+        logits = outputs.logits
+
+        predicted_class = torch.argmax(logits, dim=-1)
+
+    predicted_data = pd.Series(data=predicted_class)
+    data["sentimen"] = predicted_data
+    data["sentimen"] = data["sentimen"].map({0: "Negatif", 1: "Netral", 2: "Positif"})
+
+    return data
+
+
 def tokenize(batch):
     return tokenizer(batch["text"], max_length=MAX_LEN, truncation=True)
 
