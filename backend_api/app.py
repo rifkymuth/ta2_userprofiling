@@ -23,12 +23,12 @@ app = Flask(__name__)
 device = "cuda" if cuda.is_available() else "cpu"
 print("device is " + device)
 
-PATH = ""
+PATH = "./user_profiling_ta2/models/"
 
 # # Load indobert sentiment model from local
 # indobert_model = load_model(PATH + "model_indobert_sentiment_analysis.pkl")
 # Load word2vec
-model = Word2Vec.load("model_word2vec.model")
+model = Word2Vec.load("./user_profiling_ta2/models/model_word2vec.model")
 
 
 @app.route("/topic_classification", methods=["GET"])
