@@ -23,6 +23,8 @@ EPOCHS = 5
 LEARNING_RATE = 2e-05
 N_CLASSES = 3
 
+ROOT_PATH = "../user_profiling_ta2/"
+
 
 class IndoBERTClass(torch.nn.Module):
     def __init__(self):
@@ -144,7 +146,9 @@ def inference_seq(model, input_set):
 
 def sentiment_predict(data):
     # Load indobert sentiment model from local
-    model = load_model("model_indobert_sentiment_analysis.pkl")
+    SENTIMENT_PREDICT_MODEL_PATH = ROOT_PATH + "/model_indobert_sentiment_analysis.pkl"
+
+    model = load_model(SENTIMENT_PREDICT_MODEL_PATH)
 
     # Add new column for prediction
     data["sentimen"] = 0
@@ -190,7 +194,7 @@ def tokenize(batch):
 
 def topic_classification_indobert_model(data):
     # constant
-    TOPIC_CLASSIFICATION_MODEL_PATH = "../my_indobert_topic_classification"
+    TOPIC_CLASSIFICATION_MODEL_PATH = ROOT_PATH + "/my_indobert_topic_classification"
 
     # initialize topik column
     data["topik"] = ""
