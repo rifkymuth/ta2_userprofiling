@@ -117,8 +117,17 @@ def topic_modelling():
 
     _, topic_model = predict_topic(df["text"], stopwords_combined)
 
+    topics = topic_model.get_topics()
+
+    topics_json = {
+        topic_id: [
+            {"word": word, "probability": float(prob)} for word, prob in words_probs
+        ]
+        for topic_id, words_probs in topics
+    }
+
     data = {
-        "topics model": topic_model.get_topics(),
+        "topics model": topics_json,
     }
 
     return returnAPI(200, "Success", data)
