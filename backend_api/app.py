@@ -123,7 +123,7 @@ def topic_modelling():
         topic_id: [
             {"word": word, "probability": float(prob)} for word, prob in words_probs
         ]
-        for topic_id, words_probs in topics
+        for topic_id, words_probs in zip(topics, topics.values())
     }
 
     data = {
