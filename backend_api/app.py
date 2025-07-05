@@ -365,11 +365,11 @@ slang_path_file = "slang_id.txt"
 stopword_path_file = "stopwords_id.txt"
 
 # Load resources
+nltk.download("stopwords")
 slangs = load_slang_dict(slang_path_file)
 stopwords_combined = load_stopwords(stopword_path_file)
 
 if __name__ == "__main__":
     # app.run(debug=True)
 
-    nltk.download("stopwords")
     app.run(host="0.0.0.0", port=5295, debug=True)
