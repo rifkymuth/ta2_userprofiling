@@ -83,7 +83,7 @@ def load_model_dict(model_path):
 
 
 def load_model(model_path):
-    model = torch.load(model_path, weights_only=False)
+    model = torch.load(model_path, weights_only=False, map_location=device)
     model.indoBERT.attn_implementation = "eager"
     model.eval()
 
