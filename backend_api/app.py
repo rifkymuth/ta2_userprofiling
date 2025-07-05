@@ -115,7 +115,7 @@ def topic_modelling():
     df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
     df["Tweet"] = df["Tweet"].astype(str)
 
-    _, topic_model = predict_topic(df["Tweet"], stopwords_combined)
+    _, topic_model = predict_topic(df["text"], stopwords_combined)
 
     data = {
         "topics       : ": str(topic_model.get_topics()),
