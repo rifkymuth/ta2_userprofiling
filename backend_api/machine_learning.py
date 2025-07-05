@@ -23,7 +23,7 @@ EPOCHS = 5
 LEARNING_RATE = 2e-05
 N_CLASSES = 3
 
-ROOT_PATH = "../user_profiling_ta2/models/"
+ROOT_PATH = "./user_profiling_ta2/models/"
 
 
 class IndoBERTClass(torch.nn.Module):
