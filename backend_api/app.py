@@ -118,7 +118,7 @@ def topic_modelling():
     _, topic_model = predict_topic(df["text"], stopwords_combined)
 
     data = {
-        "topics       : ": str(topic_model.get_topics()),
+        "topics model": topic_model.get_topics(),
     }
 
     return returnAPI(200, "Success", data)
