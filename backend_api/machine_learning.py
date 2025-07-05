@@ -5,6 +5,7 @@ from transformers import (
     AutoModel,
     BertTokenizer,
     AutoModelForSequenceClassification,
+    DistilBertTokenizer,
 )
 from torch.utils.data import Dataset, DataLoader
 from torch import cuda
@@ -14,6 +15,9 @@ device = "cuda" if cuda.is_available() else "cpu"
 
 topic_classification_model_name = "cahya/bert-base-indonesian-522M"
 tokenizer = BertTokenizer.from_pretrained(topic_classification_model_name)
+
+sentiment_predict_model_name = "cahya/distilbert-base-indonesian"
+tokenizer_sentiment = DistilBertTokenizer.from_pretrained(sentiment_predict_model_name)
 
 # CONSTANTS
 MAX_LEN = 512
@@ -194,8 +198,8 @@ def sentiment_predict_indodistil_model_new(data):
 
     data["text"] = data["text"].astype(str)
 
-    # tokenized input with BertTokenizer
-    tokenized_input = tokenizer(
+    # tokenized input with DistilBertTokenizer
+    tokenized_input = tokenizer_sentiment(
         data["text"].tolist(), return_tensors="pt", truncation=True, padding=True
     )
 

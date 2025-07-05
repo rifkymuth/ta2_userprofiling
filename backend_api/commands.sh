@@ -15,6 +15,7 @@ sudo nano /etc/nginx/sites-available/flaskapp
 sudo ln -s /etc/nginx/sites-available/flaskapp /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
+sudo nginx -s reload
 
 python3 -m venv venv
 source venv/bin/activate
