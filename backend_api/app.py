@@ -112,7 +112,7 @@ def predict_sentiment():
 def topic_modelling():
 
     # Read preprocessed input
-    df = pd.read_csv("hasil_sentimen.csv", delimiter=",")
+    df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
     df["Tweet"] = df["Tweet"].astype(str)
 
     _, topic_model = predict_topic(df["Tweet"], stopwords_combined)
@@ -128,7 +128,7 @@ def topic_modelling():
 def similarity():
 
     # df = pd.read_csv("data_hasil_vector.csv", delimiter=",")
-    df = pd.read_csv("hasil_sentimen.csv", delimiter=",")
+    df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
 
     # Input teks dari pengguna
     input_text = request.form["text"]
