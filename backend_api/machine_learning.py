@@ -14,10 +14,13 @@ from datasets import Dataset
 device = "cuda" if cuda.is_available() else "cpu"
 
 topic_classification_model_name = "cahya/bert-base-indonesian-522M"
+topic_classification_model_name2 = "cahya/bert-base-indonesian-1.5G"
 tokenizer = BertTokenizer.from_pretrained(topic_classification_model_name)
 
 sentiment_predict_model_name = "cahya/distilbert-base-indonesian"
-tokenizer_sentiment = DistilBertTokenizer.from_pretrained(sentiment_predict_model_name)
+sentiment_predict_model_name2 = "cahya/bert-base-indonesian-1.5G"
+sentiment_predict_model_name3 = "distilbert-base-uncased"
+tokenizer_sentiment = DistilBertTokenizer.from_pretrained(sentiment_predict_model_name3)
 
 # CONSTANTS
 MAX_LEN = 512
@@ -27,7 +30,8 @@ EPOCHS = 5
 LEARNING_RATE = 2e-05
 N_CLASSES = 3
 
-ROOT_PATH = "./user_profiling_ta2/models/"
+# ROOT_PATH = "./user_profiling_ta2/models/"
+ROOT_PATH = ".."
 
 
 class IndoBERTClass(torch.nn.Module):
@@ -195,6 +199,40 @@ def sentiment_predict_indobert_model(data, model):
 def sentiment_predict_indodistil_model_new(data):
     # constant
     SENTIMENT_PREDICT_MODEL_PATH = ROOT_PATH + "/my_indodistilbert_sentimen"
+
+    data["text"] = data["text"].astype(str)
+
+    # tokenized input with DistilBertTokenizer
+    tokenized_input = tokenizer_sentiment(
+        data["text"].tolist(), return_tensors="pt", truncation=True, padding=True
+    )
+
+    model = AutoModelForSequenceClassification.from_pretrained(
+        SENTIMENT_PREDICT_MODEL_PATH
+    )
+
+    # Forward pass
+    model.eval()
+
+    # Forward pass
+    with torch.no_grad():
+        outputs = model(**tokenized_input)
+
+        # The logits (raw model output)
+        logits = outputs.logits
+
+        predicted_class = torch.argmax(logits, dim=-1)
+
+    predicted_data = pd.Series(data=predicted_class)
+    data["sentimen"] = predicted_data
+    data["sentimen"] = data["sentimen"].map({0: "Negatif", 1: "Netral", 2: "Positif"})
+
+    return data
+
+
+def sentiment_predict_distilbert_model_new(data):
+    # constant
+    SENTIMENT_PREDICT_MODEL_PATH = ROOT_PATH + "/my_distilbert_sentimen"
 
     data["text"] = data["text"].astype(str)
 

@@ -1,5 +1,6 @@
 import os
 from flask import Flask, request, jsonify, send_file
+import json
 import re
 import nltk
 import pandas as pd
@@ -7,6 +8,7 @@ import numpy as np
 from machine_learning import (
     sentiment_predict_indobert_model,
     sentiment_predict_indodistil_model_new,
+    sentiment_predict_distilbert_model_new,
     topic_classification_indobert_model,
     IndoBERTClass,
 )
@@ -24,59 +26,80 @@ device = "cuda" if cuda.is_available() else "cpu"
 print("device is " + device)
 
 PATH = "./user_profiling_ta2/models/"
+PATH = ""
 
-# # Load indobert sentiment model from local
-# indobert_model = load_model(PATH + "model_indobert_sentiment_analysis.pkl")
 # Load word2vec
-model = Word2Vec.load("./user_profiling_ta2/models/model_word2vec.model")
+model = Word2Vec.load(PATH + "model_word2vec.model")
 
 
 @app.route("/topic_classification", methods=["GET"])
 def topic_classification():
-    # Input file dari hasil sentimen
-    df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
+    # # Input file dari hasil sentimen
+    # df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
+
+    # Input json dari pengguna
+    with open(PATH + "hasil_sentimen.json", "r", encoding="utf-8") as json_file:
+        json_content = json.load(json_file)
+    df = pd.DataFrame(json_content)
 
     print("\n=== Predicting topic...")
-    # try:
-    df = topic_classification_indobert_model(df)
+    try:
+        df = topic_classification_indobert_model(df)
 
-    print("\n=== Prediction complete!")
-    df.to_csv(
-        PATH + "hasil_sentimen_topic_classification.csv",
-        index=False,
-    )
+        print("\n=== Prediction complete!")
 
-    print("\n=== Sending file!")
-    # except Exception as e:
-    #     return returnAPI(500, "Error", f"{e}")
+        #  Save to csv
+        df.to_csv(
+            PATH + "hasil_sentimen_topic_classification.csv",
+            index=False,
+        )
+
+        # Save as json
+        df.to_json(
+            PATH + "hasil_sentimen_topic_classification.json",
+            index=False,
+        )
+
+        print("\n=== Sending file!")
+    except Exception as e:
+        return returnAPI(500, "Error", f"{e}")
+
+    # return send_file(
+    #     PATH + "hasil_sentimen_topic_classification.csv", as_attachment=True
+    # )
 
     return send_file(
-        PATH + "hasil_sentimen_topic_classification.csv", as_attachment=True
+        PATH + "hasil_sentimen_topic_classification.json", as_attachment=True
     )
 
 
 @app.route("/predict_sentiment", methods=["POST"])
 def predict_sentiment():
-    # Input file dari pengguna
-    input_file = request.files["file"]
-    # df = pd.read_csv("data_hasil_vector.csv", delimiter=",")
-    df = pd.read_csv(input_file, delimiter=";")
+    # # Input file dari pengguna
+    # input_file = request.files["file"]
+    # df = pd.read_csv(input_file, delimiter=";")
+
+    # Input json dari pengguna
+    input_json = request.json
+    json_tweets = input_json["tweets"]
+    df = pd.DataFrame(json_tweets)
+
     print("\n=== Input file recieved!")
 
     print("\n=== Preprocessing...")
-    df["Tweet"] = df["Tweet"].astype(str)
-    df["text"] = df["Tweet"]
+    df["post"] = df["post"].astype(str)
+    df["text"] = df["post"]
 
-    df["Tweet"] = parallel_preprocess(df["Tweet"], preprocess_pipeline)
+    df["post"] = parallel_preprocess(df["post"], preprocess_pipeline)
 
-    df["Tweet"] = df["Tweet"].astype(str)
+    df["post"] = df["post"].astype(str)
 
-    df["vector"] = df["Tweet"].apply(
+    df["vector"] = df["post"].apply(
         lambda text: get_sentence_vector(text.split(), model)
     )
 
     print("\n=== Preprocessing done!")
-    print("data     :", df["Tweet"].sample(5))
+    print("data     :", df["post"].sample(5))
 
     # # Prediction
     # try:
@@ -86,33 +109,45 @@ def predict_sentiment():
     #     print("\n=== Predicting sentiments...")
     #     df = sentiment_predict_indobert_model(df, indobert_model)
 
-    #     df = df.rename(columns={"text": "tweet", "Tweet": "text"})  # fix column names
+    #     df = df.rename(columns={"text": "tweet", "post": "text"})  # fix column names
 
     #     df.to_csv(PATH + "hasil_sentimen.csv", index=False)
     # except Exception as e:
     #     return returnAPI(500, "Error", f"{e}")
 
     try:
-        df = df.rename(columns={"text": "tweet", "Tweet": "text"})  # fix column names
+        df = df.rename(columns={"text": "tweet", "post": "text"})  # fix column names
 
         print("\n=== Predicting sentiments...")
-        df = sentiment_predict_indodistil_model_new(df)
+        # df = sentiment_predict_indodistil_model_new(df)
+        df = sentiment_predict_distilbert_model_new(df)
 
-        df.to_csv(PATH + "hasil_sentimen.csv", index=False)
+        # # Save to csv file
+        # df.to_csv(PATH + "hasil_sentimen.csv", index=False)
+
+        # Save as json
+        df.to_json(PATH + "hasil_sentimen.json", index=False)
     except Exception as e:
         return returnAPI(500, "Error", f"{e}")
 
     print("\n=== Prediction complete!")
     print("\n=== Sending file!")
 
-    return send_file(PATH + "hasil_sentimen.csv", as_attachment=True)
+    # return send_file(PATH + "hasil_sentimen.csv", as_attachment=True)
+    return send_file(PATH + "hasil_sentimen.json", as_attachment=True)
 
 
 @app.route("/topic_modelling", methods=["GET"])
 def topic_modelling():
 
-    # Read preprocessed input
+    # Read preprocessed input file
     df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
+
+    # Read preprocessed json
+    with open(PATH + "hasil_sentimen.json", "r", encoding="utf-8") as json_file:
+        json_content = json.load(json_file)
+    df = pd.DataFrame(json_content)
+
     df["text"] = df["text"].astype(str)
 
     _, topic_model = predict_topic(df["text"], stopwords_combined)
@@ -135,9 +170,13 @@ def topic_modelling():
 
 @app.route("/similarity", methods=["POST"])
 def similarity():
+    # # Input file dari hasil sentimen
+    # df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
 
-    # df = pd.read_csv("data_hasil_vector.csv", delimiter=",")
-    df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
+    # Input json dari pengguna
+    with open(PATH + "hasil_sentimen.json", "r", encoding="utf-8") as json_file:
+        json_content = json.load(json_file)
+    df = pd.DataFrame(json_content)
 
     # Input teks dari pengguna
     input_text = request.form["text"]
@@ -156,9 +195,10 @@ def similarity():
 
     # --- Hitung Cosine Similarity ---
     input_vector = get_sentence_vector(text_sm.split(), model)
+    # input_vector = get_sentence_vector(text_cf.split(), model)
 
     # Ubah kolom vector dari string menjadi array NumPy
-    df["vector"] = df["vector"].apply(lambda x: np.fromstring(x.strip("[]"), sep=" "))
+    # df["vector"] = df["vector"].apply(lambda x: np.fromstring(x.strip("[]"), sep=" "))
 
     similarities = []
     for i, tweet_vector in enumerate(df["vector"]):
@@ -171,7 +211,7 @@ def similarity():
         df.at[idx, "similarity"] = sim
 
     # --- Filter tweet yang similarity-nya > 0.6 ---
-    df_filtered = df[df["similarity"] > 0.6].copy()
+    df_filtered = df[df["similarity"] > 0.5].copy()
     percentage = df_filtered["similarity"].count() / df["similarity"].count()
     print(df_filtered["similarity"].count())
     print(df["similarity"].count())
@@ -184,14 +224,14 @@ def similarity():
     sentiment_percent = df_filtered["sentimen"].value_counts(normalize=True) * 100
 
     print(
-        f"\n=== Persentase sentimen dari Tweet yang mirip dengan teks yang dimasukkan: {percentage:.5f}% ==="
+        f"\n=== Persentase sentimen dari post yang mirip dengan teks yang dimasukkan: {percentage:.5f}% ==="
     )
     print(f"Positif : {sentiment_percent.get('Positif', 0):.2f}%")
     print(f"Netral  : {sentiment_percent.get('Netral', 0):.2f}%")
     print(f"Negatif : {sentiment_percent.get('Negatif', 0):.2f}%")
 
     data = {
-        "Similar Tweets": f"{round(percentage, 5)}%",
+        "Similar posts": f"{round(percentage, 5)}%",
         "Positif": f"{round(sentiment_percent.get('Positif', 0), 2)}%",
         "Netral": f"{round(sentiment_percent.get('Netral', 0), 2)}%",
         "Negatif": f"{round(sentiment_percent.get('Negatif', 0), 2)}%",
@@ -217,8 +257,8 @@ def preprocessing(df):
     text_sm = stemming(text_sw)
 
     df["tweet"] = text_sm
-    df = df.rename(columns={"tweet": "Tweet"})
-    df["Tweet"] = df["Tweet"].fillna("")
+    df = df.rename(columns={"tweet": "post"})
+    df["post"] = df["post"].fillna("")
 
     df.to_csv(PATH + "hasil_preprocessing.csv", index=False)  # Where PATH
 
@@ -288,9 +328,9 @@ def cleaning(text):
     # Hapus kata yang terdiri dari karakter berulang
     text = re.sub(r"\b(a+|z+)\w*\b", "", text, flags=re.IGNORECASE)
 
-    # Hapus kata dengan panjang kurang dari 3 atau lebih dari 7 karakter
-    text = re.sub(r"\b\w{1,2}\b", "", text)  # kata sangat pendek (1-2 karakter)
-    text = re.sub(r"\b\w{10,}\b", "", text)  # kata sangat panjang (10 karakter ke atas)
+    # Hapus kata dengan panjang kurang dari 2 atau lebih dari 7 karakter
+    # text = re.sub(r"\b\w{,1}\b", "", text)  # kata sangat pendek (1 karakter)
+    # text = re.sub(r"\b\w{10,}\b", "", text)  # kata sangat panjang (10 karakter ke atas)
 
     return text
 
@@ -389,6 +429,4 @@ slangs = load_slang_dict(slang_path_file)
 stopwords_combined = load_stopwords(stopword_path_file)
 
 if __name__ == "__main__":
-    # app.run(debug=True)
-
     app.run(host="0.0.0.0", port=5295, debug=True)
