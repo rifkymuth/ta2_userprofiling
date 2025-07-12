@@ -26,7 +26,7 @@ device = "cuda" if cuda.is_available() else "cpu"
 print("device is " + device)
 
 PATH = "./user_profiling_ta2/models/"
-PATH = ""
+# PATH = ""
 
 # Load word2vec
 model = Word2Vec.load(PATH + "model_word2vec.model")
