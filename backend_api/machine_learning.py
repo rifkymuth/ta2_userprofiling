@@ -272,8 +272,8 @@ def topic_classification_indobert_model(data):
     # constant
     TOPIC_CLASSIFICATION_MODEL_PATH = ROOT_PATH + "/my_indobert_topic_classification"
 
-    # initialize topik column
-    data["topik"] = ""
+    # # initialize topik column
+    # data["topik"] = ""
 
     data["text"] = data["text"].astype(str)
 
@@ -304,9 +304,6 @@ def topic_classification_indobert_model(data):
             if pred_proba[pred_class] < 0.5:
                 predicted_class[i] = -1
 
-    # Decode label (optional)
-    id2label = model.config.id2label
-
     # mapping prediction to class
     data["topik"] = pd.Series(data=predicted_class).map(
         {
@@ -318,5 +315,6 @@ def topic_classification_indobert_model(data):
             4: "olahraga",
             5: "teknologi",
         }
-    )
+    ).tolist()
+
     return data
