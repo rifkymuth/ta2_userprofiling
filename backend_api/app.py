@@ -137,7 +137,7 @@ def predict_sentiment():
     return send_file(PATH + "hasil_sentimen.json", as_attachment=True)
 
 
-@app.route("/topic_modelling", methods=["GET"])
+@app.route("/topic_modeling", methods=["GET"])
 def topic_modelling():
 
     # Read preprocessed input file
@@ -199,25 +199,24 @@ def similarity():
 
     # Ubah kolom vector dari string menjadi array NumPy
     # df["vector"] = df["vector"].apply(lambda x: np.fromstring(x.strip("[]"), sep=" "))
+    df["vector"] = df["vector"].apply(lambda x: np.array(x))
 
     similarities = []
     for i, tweet_vector in enumerate(df["vector"]):
         sim = cosine_similarity([input_vector], [tweet_vector])[0][0]
-        similarities.append((i, sim))
+        similarities.append(sim)
 
-    # --- Tambahkan kolom similarity ke DataFrame ---
-    df["similarity"] = 0.0
-    for idx, sim in similarities:
-        df.at[idx, "similarity"] = sim
+    # # --- Tambahkan kolom similarity ke DataFrame ---
+    df["similarity"] = similarities
 
-    # --- Filter tweet yang similarity-nya > 0.6 ---
+    # --- Filter tweet yang similarity-nya > 0.5 ---
     df_filtered = df[df["similarity"] > 0.5].copy()
     percentage = df_filtered["similarity"].count() / df["similarity"].count()
     print(df_filtered["similarity"].count())
     print(df["similarity"].count())
     print(percentage)
 
-    # --- Urutkan berdasarkan similarity ---
+    # # --- Urutkan berdasarkan similarity ---
     df_filtered.sort_values(by="similarity", ascending=False, inplace=True)
 
     # Hitung persentase sentimen

@@ -22,4 +22,4 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 pip install gunicorn
-gunicorn -w 4 -b 127.0.0.1:5295 app:app --timeout 600
+gunicorn -w 4 -b 127.0.0.1:5295 app:app --timeout 600 --daemon
