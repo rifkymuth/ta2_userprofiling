@@ -448,10 +448,10 @@ slang_path_file = "slang_id.txt"
 stopword_path_file = "stopwords_id.txt"
 
 # Load resources
+install_argos_translate()
 nltk.download("stopwords")
 slangs = load_slang_dict(slang_path_file)
 stopwords_combined = load_stopwords(stopword_path_file)
 
 if __name__ == "__main__":
-    install_argos_translate()
     app.run(host="0.0.0.0", port=5295, debug=True)
