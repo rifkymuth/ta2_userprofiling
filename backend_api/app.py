@@ -131,8 +131,8 @@ def predict_sentiment():
 @app.route("/topic_modeling", methods=["GET"])
 def topic_modelling():
 
-    # Read preprocessed input file
-    df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
+    # # Read preprocessed input file
+    # df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
 
     # Read preprocessed json
     with open(PATH + "hasil_sentimen.json", "r", encoding="utf-8") as json_file:
