@@ -5,6 +5,7 @@ import re
 import nltk
 import pandas as pd
 import numpy as np
+import emoji
 from machine_learning import (
     sentiment_predict_indobert_model,
     sentiment_predict_indodistil_model_new,
@@ -19,14 +20,16 @@ from sklearn.metrics.pairwise import cosine_similarity
 from torch import cuda
 from concurrent.futures import ProcessPoolExecutor
 from bertopic_model import predict_topic
+from langdetect import detect, detect_langs, LangDetectException
+from argostranslate import package, translate
 
 app = Flask(__name__)
 
 device = "cuda" if cuda.is_available() else "cpu"
 print("device is " + device)
 
-PATH = "./user_profiling_ta2/models/"
-# PATH = ""
+# PATH = "./user_profiling_ta2/models/"
+PATH = ""
 
 # Load word2vec
 model = Word2Vec.load(PATH + "model_word2vec.model")
@@ -86,20 +89,8 @@ def predict_sentiment():
 
     print("\n=== Input file recieved!")
 
-    print("\n=== Preprocessing...")
-    df["post"] = df["post"].astype(str)
-    df["text"] = df["post"]
-
-    df["post"] = parallel_preprocess(df["post"], preprocess_pipeline)
-
-    df["post"] = df["post"].astype(str)
-
-    df["vector"] = df["post"].apply(
-        lambda text: get_sentence_vector(text.split(), model)
-    )
-
-    print("\n=== Preprocessing done!")
-    print("data     :", df["post"].sample(5))
+    # Preprocessing
+    df = preprocess_task(df)
 
     # # Prediction
     # try:
@@ -209,8 +200,8 @@ def similarity():
     # # --- Tambahkan kolom similarity ke DataFrame ---
     df["similarity"] = similarities
 
-    # --- Filter tweet yang similarity-nya > 0.5 ---
-    df_filtered = df[df["similarity"] > 0.5].copy()
+    # --- Filter tweet yang similarity-nya > 0.6 ---
+    df_filtered = df[df["similarity"] > 0.6].copy()
     percentage = df_filtered["similarity"].count() / df["similarity"].count()
     print(df_filtered["similarity"].count())
     print(df["similarity"].count())
@@ -247,41 +238,6 @@ def returnAPI(code=200, message="", data=[]):
     return jsonify(returnArray)
 
 
-def preprocessing(df):
-    # Proses preprocessing lengkap
-    # still not working
-    text_cf = case_folding(df)
-    text_cl = cleaning(text_cf)
-    text_sw = stopwords_removal(text_cl)
-    text_sm = stemming(text_sw)
-
-    df["tweet"] = text_sm
-    df = df.rename(columns={"tweet": "post"})
-    df["post"] = df["post"].fillna("")
-
-    df.to_csv(PATH + "hasil_preprocessing.csv", index=False)  # Where PATH
-
-    list_word = text_sm.apply(lambda x: x.split()).tolist()
-    df_list_words = (
-        pd.DataFrame(list_word)
-        .stack()  # mengubah list 2D menjadi format 1D.
-        .reset_index(drop=True)  # mereset indeks setelah proses stacking.
-        .to_frame(
-            name="Word"
-        )  # mengonversi hasil stacking menjadi DataFrame dengan kolom "Word".
-        .groupby("Word")
-        .size()  #  menghitung frekuensi kemunculan setiap kata.
-        .reset_index(
-            name="Total"
-        )  # mengonversi hasil groupby ke DataFrame dengan kolom 'Word' dan 'Total'.
-        .sort_values(
-            by=["Total", "Word"], ascending=[False, True]
-        )  # mengurutkan hasil berdasarkan total dan kata.
-        .reset_index(drop=True)
-    )
-    df_list_words.to_csv(PATH + "list_words.csv", index=False)
-
-
 # --- Word2Vec Vectorization ---
 def get_sentence_vector(tokens, model):
     word_vecs = [model.wv[word] for word in tokens if word in model.wv]
@@ -294,8 +250,12 @@ def case_folding(text):
     text = text.casefold()
     return text
 
+def transform_emoji(text):
+    # Transform :emoji_name: to emoji winking face
+    return re.sub(r":([a-z0-9_]+):", lambda m: "emoji " + m.group(1).replace("_", " "), text)
 
-def cleaning(text):
+
+def cleaning(text, lang="id"):
 
     # Menghapus karakter baris atau tab (\n, \r, \t..)
     text = re.sub(r"\n|\r|\t", " ", text)
@@ -317,6 +277,9 @@ def cleaning(text):
 
     # Menghapus tanda baca
     text = re.sub(r"[^\w\s]", "", text)
+
+    # Mengubah emoji
+    text = transform_emoji(emoji.demojize(text, language=lang))
 
     # Menghapus semua karakter yang bukan huruf alfabet
     text = re.sub(r"[^a-zA-Z]", " ", text)
@@ -407,7 +370,7 @@ def preprocess_pipeline(text):
     except Exception as e:
         print(f"Error processing text: {e}")
         return None
-
+    
 
 def parallel_preprocess(series, func, max_workers=None):
     if max_workers is None:
@@ -417,6 +380,68 @@ def parallel_preprocess(series, func, max_workers=None):
     results_df = pd.Series(results, index=series.index)
     return results_df.dropna().reset_index(drop=True)
 
+def preprocess_task(df):
+    print("\n=== Preprocessing...")
+    df["post"] = df["post"].astype(str)
+
+    # making a copy
+    df["text"] = df["post"]
+
+    # detecting language
+    df['lang'] = df['post'].apply(safe_detect)
+
+    # translating to indonesian
+    print("\n== Translating...")
+    df["post"] = argos_batch_translate(df["post"].tolist(), df['lang'].tolist())
+
+    # preprocessing
+    print("\n== Preprocessing pipeline...")
+    df["post"] = parallel_preprocess(df["post"], preprocess_pipeline)
+
+    df["post"] = df["post"].astype(str)
+
+    df["vector"] = df["post"].apply(
+        lambda text: get_sentence_vector(text.split(), model)
+    )
+
+    print("\n=== Preprocessing done!")
+    print("data     :", df["post"].sample(5))
+
+    return df
+
+def safe_detect(text):
+    try:
+        return detect(text)
+    except LangDetectException:
+        return "un"
+    
+def install_argos_translate():
+    package.update_package_index()
+    available_packages = package.get_available_packages()
+    model_installed = any(
+        pkg.from_code == "en" and pkg.to_code == "id"
+        for pkg in package.get_installed_packages()
+    )
+    if not model_installed:
+        print("Downloading Argos Translate model: English → Indonesian...")
+        package_to_install = next(
+            p for p in available_packages if p.from_code == "en" and p.to_code == "id"
+        )
+        package.install_from_path('translate-en_id-1_9.argosmodel')
+        print("Model installed.")
+    else:
+        print("Argos Translate model already installed.")
+
+def argos_single_translate(text, lang, from_lang="en", to_lang="id"):
+    if lang == from_lang:
+        return translate.translate(text, from_lang, to_lang)
+    else:
+        return text
+
+def argos_batch_translate(texts, langs):
+    with ProcessPoolExecutor(max_workers=4) as executor:
+        results = list(executor.map(argos_single_translate, texts, langs))
+    return results
 
 # Paths to files
 slang_path_file = "slang_id.txt"
@@ -428,4 +453,5 @@ slangs = load_slang_dict(slang_path_file)
 stopwords_combined = load_stopwords(stopword_path_file)
 
 if __name__ == "__main__":
+    install_argos_translate()
     app.run(host="0.0.0.0", port=5295, debug=True)

@@ -11,3 +11,6 @@ torch==2.6.0
 transformers==4.51.3
 bertopic
 datasets
+emoji
+langdetect
+argostranslate
