@@ -22,6 +22,7 @@ from concurrent.futures import ProcessPoolExecutor
 from bertopic_model import predict_topic
 from langdetect import detect, detect_langs, LangDetectException
 from argostranslate import package, translate
+from concurrent.futures import ThreadPoolExecutor
 
 app = Flask(__name__)
 
@@ -62,6 +63,7 @@ def topic_classification():
             PATH + "hasil_sentimen_topic_classification.json",
             index=False,
         )
+        # df.drop(columns=['vector']).to_json(PATH + "temp.json", index=False)
 
         print("\n=== Sending file!")
     except Exception as e:
@@ -74,6 +76,8 @@ def topic_classification():
     return send_file(
         PATH + "hasil_sentimen_topic_classification.json", as_attachment=True
     )
+
+    # return send_file(PATH + "temp.json", as_attachment=True)
 
 
 @app.route("/predict_sentiment", methods=["POST"])
@@ -118,14 +122,15 @@ def predict_sentiment():
 
         # Save as json
         df.to_json(PATH + "hasil_sentimen.json", index=False)
+        # df.drop(columns=['vector']).to_json(PATH + "temp.json", index=False)
     except Exception as e:
         return returnAPI(500, "Error", f"{e}")
 
     print("\n=== Prediction complete!")
     print("\n=== Sending file!")
 
-    # return send_file(PATH + "hasil_sentimen.csv", as_attachment=True)
     return send_file(PATH + "hasil_sentimen.json", as_attachment=True)
+    # return send_file(PATH + "temp.json", as_attachment=True)
 
 
 @app.route("/topic_modeling", methods=["GET"])
@@ -190,6 +195,9 @@ def similarity():
 
     # Ubah kolom vector dari string menjadi array NumPy
     # df["vector"] = df["vector"].apply(lambda x: np.fromstring(x.strip("[]"), sep=" "))
+    df["vector"] = df["post"].apply(
+        lambda text: get_sentence_vector(text.split(), model)
+    )
     df["vector"] = df["vector"].apply(lambda x: np.array(x))
 
     similarities = []
@@ -347,17 +355,7 @@ def stopwords_removal(text):
 
 
 def stemming(text):
-    factory = StemmerFactory()
-    stemmer = factory.create_stemmer()
-
-    words = text.split()
-
-    text_lm = []
-    for w in words:
-        lm = stemmer.stem(w)
-        text_lm.append(lm)
-
-    return " ".join(text_lm)
+    return stemmer.stem(text)
 
 
 def preprocess_pipeline(text):
@@ -374,11 +372,19 @@ def preprocess_pipeline(text):
 
 def parallel_preprocess(series, func, max_workers=None):
     if max_workers is None:
-        max_workers = os.cpu_count() or 4
+        max_workers = os.cpu_count()-1 or 4
+        # max_workers = 4
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         results = list(executor.map(func, series))
     results_df = pd.Series(results, index=series.index)
     return results_df.dropna().reset_index(drop=True)
+
+def multithreading_preprocess(series, func, max_workers=None):
+    if max_workers is None:
+        max_workers = os.cpu_count()-1 or 4
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        results = list(executor.map(func, series))
+    return pd.Series(results, index=series.index).dropna().reset_index(drop=True)
 
 def preprocess_task(df):
     print("\n=== Preprocessing...")
@@ -392,17 +398,18 @@ def preprocess_task(df):
 
     # translating to indonesian
     print("\n== Translating...")
-    df["post"] = argos_batch_translate(df["post"].tolist(), df['lang'].tolist())
+    # df["post"] = argos_batch_translate(df["post"].tolist(), df['lang'].tolist())
+    df["post"] = df.apply(
+        lambda row: argos_single_translate(row["post"], row["lang"]),
+        axis=1
+    )
 
     # preprocessing
     print("\n== Preprocessing pipeline...")
-    df["post"] = parallel_preprocess(df["post"], preprocess_pipeline)
+    df["post"] = multithreading_preprocess(series=df["post"], func=preprocess_pipeline)
 
     df["post"] = df["post"].astype(str)
 
-    df["vector"] = df["post"].apply(
-        lambda text: get_sentence_vector(text.split(), model)
-    )
 
     print("\n=== Preprocessing done!")
     print("data     :", df["post"].sample(5))
@@ -439,7 +446,7 @@ def argos_single_translate(text, lang, from_lang="en", to_lang="id"):
         return text
 
 def argos_batch_translate(texts, langs):
-    with ProcessPoolExecutor(max_workers=4) as executor:
+    with ProcessPoolExecutor(max_workers=os.cpu_count() or 4) as executor:
         results = list(executor.map(argos_single_translate, texts, langs))
     return results
 
@@ -452,6 +459,8 @@ install_argos_translate()
 nltk.download("stopwords")
 slangs = load_slang_dict(slang_path_file)
 stopwords_combined = load_stopwords(stopword_path_file)
+factory = StemmerFactory()
+stemmer = factory.create_stemmer()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5295, debug=True)
