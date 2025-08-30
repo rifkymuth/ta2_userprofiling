@@ -195,7 +195,7 @@ def similarity():
 
     # Ubah kolom vector dari string menjadi array NumPy
     # df["vector"] = df["vector"].apply(lambda x: np.fromstring(x.strip("[]"), sep=" "))
-    df["vector"] = df["post"].apply(
+    df["vector"] = df["text"].apply(
         lambda text: get_sentence_vector(text.split(), model)
     )
     df["vector"] = df["vector"].apply(lambda x: np.array(x))
