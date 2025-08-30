@@ -29,7 +29,7 @@ app = Flask(__name__)
 device = "cuda" if cuda.is_available() else "cpu"
 print("device is " + device)
 
-PATH = "./user_profiling_ta2/models/"
+PATH = "../../user_profiling_ta2/models/"
 # PATH = ""
 
 # Load word2vec
