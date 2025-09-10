@@ -23,6 +23,11 @@ from bertopic_model import predict_topic
 from langdetect import detect, detect_langs, LangDetectException
 from argostranslate import package, translate
 from concurrent.futures import ThreadPoolExecutor
+from openai import OpenAI
+import base64
+from dotenv import load_dotenv
+
+load_dotenv()  # take environment variables
 
 app = Flask(__name__)
 
@@ -31,6 +36,7 @@ print("device is " + device)
 
 PATH = "../../user_profiling_ta2/models/"
 # PATH = ""
+IMAGES_PATH = "/data/images"
 
 # Load word2vec
 model = Word2Vec.load(PATH + "model_word2vec.model")
@@ -96,19 +102,51 @@ def predict_sentiment():
     # Preprocessing
     df = preprocess_task(df)
 
-    # # Prediction
-    # try:
-    #     # Load indobert sentiment model from local
-    #     indobert_model = load_model(PATH + "model_indobert_sentiment_analysis.pkl")
+    try:
+        df = df.rename(columns={"text": "tweet", "post": "text"})  # fix column names
 
-    #     print("\n=== Predicting sentiments...")
-    #     df = sentiment_predict_indobert_model(df, indobert_model)
+        print("\n=== Predicting sentiments...")
+        # df = sentiment_predict_indodistil_model_new(df)
+        df = sentiment_predict_distilbert_model_new(df)
 
-    #     df = df.rename(columns={"text": "tweet", "post": "text"})  # fix column names
+        # # Save to csv file
+        # df.to_csv(PATH + "hasil_sentimen.csv", index=False)
 
-    #     df.to_csv(PATH + "hasil_sentimen.csv", index=False)
-    # except Exception as e:
-    #     return returnAPI(500, "Error", f"{e}")
+        # Save as json
+        df.to_json(PATH + "hasil_sentimen.json", index=False)
+        # df.drop(columns=['vector']).to_json(PATH + "temp.json", index=False)
+    except Exception as e:
+        return returnAPI(500, "Error", f"{e}")
+
+    print("\n=== Prediction complete!")
+    print("\n=== Sending file!")
+
+    return send_file(PATH + "hasil_sentimen.json", as_attachment=True)
+    # return send_file(PATH + "temp.json", as_attachment=True)
+
+@app.route("/predict_sentiment_ig", methods=["POST"])
+def predict_sentiment_ig():
+    # # Input file dari pengguna
+    # input_file = request.files["file"]
+    # df = pd.read_csv(input_file, delimiter=";")
+
+    # Input json dari pengguna
+    input_json = request.json
+    json_tweets = input_json["tweets"]
+    df = pd.DataFrame(json_tweets)
+
+    # save input json to a file
+    file_name = "ig_post.json"
+    if not os.path.exists(IMAGES_PATH):
+        os.makedirs(IMAGES_PATH) # Use os.makedirs for creating intermediate directories
+    full_file_path = f".{IMAGES_PATH}/{file_name}"
+    with open(full_file_path, "w") as f:
+        json.dump(input_json, f, indent=2)
+
+    print("\n=== Input file recieved!")
+
+    # Preprocessing
+    df = preprocess_task(df)
 
     try:
         df = df.rename(columns={"text": "tweet", "post": "text"})  # fix column names
@@ -132,6 +170,127 @@ def predict_sentiment():
     return send_file(PATH + "hasil_sentimen.json", as_attachment=True)
     # return send_file(PATH + "temp.json", as_attachment=True)
 
+@app.route("/analyze_images", methods=["GET"])
+def analyze_images():
+
+    # Read input json
+    print("\n=== Reading file")
+    file_name = "ig_post.json"
+    full_file_path = f".{IMAGES_PATH}/{file_name}"
+    with open(full_file_path, "r", encoding="utf-8") as json_file:
+        json_content = json.load(json_file)
+
+    # getting username image_paths
+    print("\n=== Converting Image to Base64")
+    username = json_content["name"]
+    posts = json_content["tweets"]
+    image_paths = []
+    for post in posts:
+        image_paths.append(f".{IMAGES_PATH}/{post["image"]}")
+
+    # converting image to base64
+    base64_images = list(map(encode_image, image_paths))
+    input_images_json = list(map(lambda x: {
+      "type": "input_image",
+      "image_url": f"data:image/jpeg;base64,{x}",
+      "detail": "low"
+    }, base64_images))
+
+    input_images_len = len(image_paths)
+
+    # fetching openAI visual language response
+    print("\n=== Captioning Images Through OpenAI")
+
+    instruction = """
+    # Identity
+
+    You are an AI Agent with task of vision language understanding. Give response in json format in Indonesian language.
+
+    # Instructions
+
+    * There will be a user input in Indonesian language that consisting of a input_text that ask you to caption the provided images from a spesific user, and followed by multiple input_images.
+    * Analyze each of the provided images in low detail and outputs it in a json format for each image in a list with this exact format:
+    [
+        {
+        "index": 0,
+        "image_caption": "<image caption>"
+        },
+        {
+        "index": 1,
+        "image_caption": "<image caption>"
+        }
+    ]
+
+    # Examples
+
+    <user_query>
+    "Gambar ini adalah post instagram dari user bernama 'erdward'. Jelaskan foto apa yang di-post oleh edward?"
+    </user_query>
+
+    <user_input_image>
+    "type": "input_image",
+    "image_url": imagebase64,
+    "detail": "low"
+    </user_input_image>
+
+    <assistant_response>
+    [{
+        "index": 0,
+        "image_caption": "<image caption>",
+    }]
+    </assistant_response>
+    """
+
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=[
+            {
+                "role": "system",
+                "content": instruction
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": f"Berikut adalah {input_images_len} gambar dari post instagram user bernama '{username}'. Jelaskan foto apa yang di-post oleh {username} secara singkat?"}
+                ] + input_images_json,
+            }
+        ],
+    )
+
+    print(response)
+
+    # fetching openAI summary for analyzed images
+    print("\n=== Summarizing Images Captions Through OpenAI")
+
+    response2 = client.responses.create(
+        model="gpt-4.1-mini",
+        input=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": f"""
+                        Berikut adalah hasil analisis foto seluruh post instagram dari user '{username}':
+                        {response.output_text}
+                        Rangkum foto apa saja yang sering di-post oleh user '{username}' keseluruhan secara singkat dan dalam 1 kalimat!
+                        """
+                    }
+                ],
+            }
+        ],
+    )
+
+    print(response2)
+
+    final_response = {
+        "image_caption_response": json.loads(response.output_text),
+        "image_summary": response2.output_text
+    }
+
+    print("\n=== Sending File!")
+
+    return returnAPI(200, "Success", final_response)
 
 @app.route("/topic_modeling", methods=["GET"])
 def topic_modelling():
@@ -450,6 +609,11 @@ def argos_batch_translate(texts, langs):
         results = list(executor.map(argos_single_translate, texts, langs))
     return results
 
+# Function to encode the image
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
 # Paths to files
 slang_path_file = "slang_id.txt"
 stopword_path_file = "stopwords_id.txt"
@@ -461,6 +625,9 @@ slangs = load_slang_dict(slang_path_file)
 stopwords_combined = load_stopwords(stopword_path_file)
 factory = StemmerFactory()
 stemmer = factory.create_stemmer()
+client = OpenAI(
+  api_key=f"{os.getenv("OPENAI_API_KEY")}"
+)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5295, debug=True)
