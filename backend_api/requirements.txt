@@ -16,3 +16,5 @@ langdetect
 argostranslate
 openai
 python-dotenv
+fastopic
+topmost

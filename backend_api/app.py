@@ -323,26 +323,40 @@ def topic_modelling():
         json_content = json.load(json_file)
     df = pd.DataFrame(json_content)
 
-    try:
-        df = df.rename(columns={"caption": "tweet"})
-    finally:
-        pass
+    # try:
+    #     df = df.rename(columns={"caption": "tweet"})
+    # finally:
+    #     pass
 
-    df["tweet"] = df["tweet"].astype(str)
+    df["text"] = df["text"].astype(str)
 
-    _, topic_model = predict_topic(df["tweet"], stopwords_combined)
+    print("\n=== Topic Modeling!!")
+    _, topic_model = predict_topic(df["text"], stopwords_combined)
 
-    topics = topic_model.get_topics()
+    # topics = topic_model.get_topic()
 
-    topics_json = {
-        topic_id: [
-            {"word": word, "probability": float(prob)} for word, prob in words_probs
-        ]
-        for topic_id, words_probs in zip(topics, topics.values())
+    # topics_json = {
+    #     topic_id: [
+    #         {"word": word, "probability": float(prob)} for word, prob in words_probs
+    #     ]
+    #     for topic_id, words_probs in zip(topics, topics.values())
+    # }
+
+    # data = {
+    #     "topics model": topics_json,
+    # }
+
+    topics = []
+    for i in range(6):
+        topics.append(topic_model.get_topic(i))
+    
+    result = {
+        i: [{"word": word, "probability": float(prob)} for word, prob in group]
+        for i, group in enumerate(topics)
     }
 
     data = {
-        "topics model": topics_json,
+        "topics model": result,
     }
 
     return returnAPI(200, "Success", data)
