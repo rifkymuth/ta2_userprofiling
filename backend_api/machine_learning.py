@@ -6,10 +6,12 @@ from transformers import (
     BertTokenizer,
     AutoModelForSequenceClassification,
     DistilBertTokenizer,
+    pipeline
 )
 from torch.utils.data import Dataset, DataLoader
 from torch import cuda
 from datasets import Dataset
+
 
 device = "cuda" if cuda.is_available() else "cpu"
 
@@ -260,6 +262,19 @@ def sentiment_predict_distilbert_model_new(data):
     predicted_data = pd.Series(data=predicted_class)
     data["sentimen"] = predicted_data
     data["sentimen"] = data["sentimen"].map({0: "Negatif", 1: "Netral", 2: "Positif"})
+
+    return data
+
+def sentiment_predict_distilbert_pipeline(data):
+    data["text"] = data["text"].astype(str)
+
+    pipe = pipeline(task="text-classification", model="distilbert/distilbert-base-uncased-finetuned-sst-2-english")
+    response_json_list = pipe(data["caption"])
+    predicted_class = list(map(lambda x: x['label'], response_json_list))
+
+    predicted_data = pd.Series(data=predicted_class)
+    data["sentimen"] = predicted_data
+    data["sentimen"] = data["sentimen"].map({'NEGATIVE': "Negatif", 'NEUTRAL': "Netral", 'POSITIVE': "Positif"})
 
     return data
 

@@ -1,5 +1,7 @@
+from itertools import islice
 import os
 from flask import Flask, request, jsonify, send_file
+from math import ceil
 import json
 import re
 import nltk
@@ -132,7 +134,7 @@ def predict_sentiment_ig():
 
     # Input json dari pengguna
     input_json = request.json
-    json_tweets = input_json["tweets"]
+    json_tweets = input_json["posts"]
     df = pd.DataFrame(json_tweets)
 
     # save input json to a file
@@ -146,10 +148,11 @@ def predict_sentiment_ig():
     print("\n=== Input file recieved!")
 
     # Preprocessing
+    df = df.rename(columns={"caption": "post"})  # fix column names for preprocess
     df = preprocess_task(df)
 
     try:
-        df = df.rename(columns={"text": "tweet", "post": "text"})  # fix column names
+        df = df.rename(columns={"text": "caption", "post": "text"})  # fix column names
 
         print("\n=== Predicting sentiments...")
         # df = sentiment_predict_indodistil_model_new(df)
@@ -181,22 +184,24 @@ def analyze_images():
         json_content = json.load(json_file)
 
     # getting username image_paths
-    print("\n=== Converting Image to Base64")
+    print("\n=== Getting image urls")
     username = json_content["name"]
-    posts = json_content["tweets"]
+    posts = json_content["posts"]
     image_paths = []
     for post in posts:
-        image_paths.append(f".{IMAGES_PATH}/{post["image"]}")
+        image_paths = image_paths + post["images"]
 
-    # converting image to base64
-    base64_images = list(map(encode_image, image_paths))
+    # # converting image to base64
+    # base64_images = list(map(encode_image, image_paths))
+
     input_images_json = list(map(lambda x: {
       "type": "input_image",
-      "image_url": f"data:image/jpeg;base64,{x}",
+      "image_url": f"{x}",
       "detail": "low"
-    }, base64_images))
+    }, image_paths))
 
     input_images_len = len(image_paths)
+    print(f"input_images_len = {input_images_len}")
 
     # fetching openAI visual language response
     print("\n=== Captioning Images Through OpenAI")
@@ -240,24 +245,32 @@ def analyze_images():
     }]
     </assistant_response>
     """
+    
+    response = []
 
-    response = client.responses.create(
-        model="gpt-4.1-mini",
-        input=[
-            {
-                "role": "system",
-                "content": instruction
-            },
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": f"Berikut adalah {input_images_len} gambar dari post instagram user bernama '{username}'. Jelaskan foto apa yang di-post oleh {username} secara singkat?"}
-                ] + input_images_json,
-            }
-        ],
-    )
+    for batch in batch_iterable(input_images_json, 10):
+        result = client.responses.create(
+            model="gpt-4.1-mini",
+            input=[
+                {
+                    "role": "system",
+                    "content": instruction
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": f"Berikut adalah {len(batch)} gambar dari post instagram user bernama '{username}'. Jelaskan foto apa yang di-post oleh {username} secara singkat?"}
+                    ] + batch,
+                }
+            ],
+        )
+        print(result)
+        result_json = json.loads(result.output_text)
+        response = response + result_json
 
-    print(response)
+
+    # response_json = json.loads(response.output_text)
+    response_caption_list = list(map(lambda response_item: response_item["image_caption"], response))
 
     # fetching openAI summary for analyzed images
     print("\n=== Summarizing Images Captions Through OpenAI")
@@ -272,7 +285,7 @@ def analyze_images():
                         "type": "input_text",
                         "text": f"""
                         Berikut adalah hasil analisis foto seluruh post instagram dari user '{username}':
-                        {response.output_text}
+                        {response_caption_list}
                         Rangkum foto apa saja yang sering di-post oleh user '{username}' keseluruhan secara singkat dan dalam 1 kalimat!
                         """
                     }
@@ -283,8 +296,15 @@ def analyze_images():
 
     print(response2)
 
+    for i in range(len(response)):
+        response[i] = {
+            "index": i,
+            "image_caption": response[i]["image_caption"],
+            "image_url": image_paths[i]
+        }
+
     final_response = {
-        "image_caption_response": json.loads(response.output_text),
+        "image_captioning_results": response,
         "image_summary": response2.output_text
     }
 
@@ -613,6 +633,14 @@ def argos_batch_translate(texts, langs):
 def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
+    
+def batch_iterable(iterable, batch_size):
+    it = iter(iterable)
+    while True:
+        batch = list(islice(it, batch_size))
+        if not batch:
+            break
+        yield batch
 
 # Paths to files
 slang_path_file = "slang_id.txt"
