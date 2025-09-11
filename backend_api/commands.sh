@@ -28,7 +28,7 @@ gunicorn -w 4 -b 127.0.0.1:5295 app:app --timeout 600 --daemon --pid gunicorn.pi
 ps aux | grep gunicorn
 killall -9 gunicorn
 kill -TERM $(cat gunicorn.pid)
-
+sudo nano .env
 
 
 sftp root@31.97.221.152

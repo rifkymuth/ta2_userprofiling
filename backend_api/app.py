@@ -248,7 +248,7 @@ def analyze_images():
     
     response = []
 
-    for batch in batch_iterable(input_images_json, 10):
+    for batch in batch_iterable(input_images_json, 8):
         result = client.responses.create(
             model="gpt-4.1-mini",
             input=[
@@ -323,9 +323,14 @@ def topic_modelling():
         json_content = json.load(json_file)
     df = pd.DataFrame(json_content)
 
-    df["text"] = df["text"].astype(str)
+    try:
+        df = df.rename(columns={"caption": "tweet"})
+    finally:
+        pass
 
-    _, topic_model = predict_topic(df["text"], stopwords_combined)
+    df["tweet"] = df["tweet"].astype(str)
+
+    _, topic_model = predict_topic(df["tweet"], stopwords_combined)
 
     topics = topic_model.get_topics()
 
