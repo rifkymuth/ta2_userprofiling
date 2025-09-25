@@ -456,9 +456,10 @@ def case_folding(text):
     text = text.casefold()
     return text
 
-def transform_emoji(text):
+def transform_emoji(text, lang):
+    text = emoji.demojize(text, language=lang)
     # Transform :emoji_name: to emoji winking face
-    return re.sub(r":([a-z0-9_]+):", lambda m: "emoji " + m.group(1).replace("_", " "), text)
+    return text.replace("_", " ").replace(":", " ")
 
 
 def cleaning(text, lang="id"):
@@ -468,6 +469,9 @@ def cleaning(text, lang="id"):
 
     # Menghapus URL
     text = re.sub(r"http[s]?\://\S+", "", text)
+
+    # Mengubah emoji
+    text = transform_emoji(text, lang)
 
     # Menghapus hashtag
     text = re.sub(r"#\S+", "", text)
@@ -484,8 +488,6 @@ def cleaning(text, lang="id"):
     # Menghapus tanda baca
     text = re.sub(r"[^\w\s]", "", text)
 
-    # Mengubah emoji
-    text = transform_emoji(emoji.demojize(text, language=lang))
 
     # Menghapus semua karakter yang bukan huruf alfabet
     text = re.sub(r"[^a-zA-Z]", " ", text)

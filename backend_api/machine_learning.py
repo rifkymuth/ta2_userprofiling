@@ -234,7 +234,8 @@ def sentiment_predict_indodistil_model_new(data):
 
 def sentiment_predict_distilbert_model_new(data):
     # constant
-    SENTIMENT_PREDICT_MODEL_PATH = ROOT_PATH + "/my_distilbert_sentimen"
+    # SENTIMENT_PREDICT_MODEL_PATH = ROOT_PATH + "/my_distilbert_sentimen"
+    SENTIMENT_PREDICT_MODEL_PATH = ROOT_PATH + "/my_distilbert_sentimen_3"
 
     data["text"] = data["text"].astype(str)
 
@@ -259,9 +260,21 @@ def sentiment_predict_distilbert_model_new(data):
 
         predicted_class = torch.argmax(logits, dim=-1)
 
+        # Edited
+        predicted_class_proba = torch.softmax(logits, dim=-1)
+        for pred_class, pred_proba, i in zip(
+            predicted_class, predicted_class_proba, range(len(predicted_class))
+        ):
+            if pred_proba[pred_class] < 0.7:
+                predicted_class[i] = -1
+
+    # predicted_data = pd.Series(data=predicted_class)
+    # data["sentimen"] = predicted_data
+    # data["sentimen"] = data["sentimen"].map({0: "Negatif", 1: "Netral", 2: "Positif"})
+
     predicted_data = pd.Series(data=predicted_class)
     data["sentimen"] = predicted_data
-    data["sentimen"] = data["sentimen"].map({0: "Negatif", 1: "Netral", 2: "Positif"})
+    data["sentimen"] = data["sentimen"].map({0: "Negatif", 1: "Positif", -1: "Netral"})
 
     return data
 
