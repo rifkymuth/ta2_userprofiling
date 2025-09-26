@@ -57,6 +57,7 @@ def topic_classification():
     print("\n=== Predicting topic...")
     try:
         df = topic_classification_indobert_model(df)
+        df.loc[df["text"] == "", "topik"] = "lain-lain"
 
         print("\n=== Prediction complete!")
 

@@ -298,7 +298,8 @@ def tokenize(batch):
 
 def topic_classification_indobert_model(data):
     # constant
-    TOPIC_CLASSIFICATION_MODEL_PATH = ROOT_PATH + "/my_indobert_topic_classification"
+    # TOPIC_CLASSIFICATION_MODEL_PATH = ROOT_PATH + "/my_indobert_topic_classification"
+    TOPIC_CLASSIFICATION_MODEL_PATH = ROOT_PATH + "/my_indobert_topic_classification_3"
 
     # # initialize topik column
     # data["topik"] = ""
@@ -329,7 +330,7 @@ def topic_classification_indobert_model(data):
         for pred_class, pred_proba, i in zip(
             predicted_class, predicted_class_proba, range(len(predicted_class))
         ):
-            if pred_proba[pred_class] < 0.7:
+            if pred_proba[pred_class] < 0.6:
                 predicted_class[i] = -1
 
     # mapping prediction to class
