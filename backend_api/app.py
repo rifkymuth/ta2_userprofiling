@@ -613,7 +613,7 @@ def preprocess_task(df):
 
 
     print("\n=== Preprocessing done!")
-    print("data     :", df["post"].sample(5))
+    print("data     :", df["post"].sample(min(5, len(df["post"]))))
 
     return df
 
