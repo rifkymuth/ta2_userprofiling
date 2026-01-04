@@ -37,27 +37,22 @@ device = "cuda" if cuda.is_available() else "cpu"
 print("device is " + device)
 
 PATH = "../../user_profiling_ta2/models/"
-# PATH = ""
+PATH = ""
 IMAGES_PATH = "/data/images"
 
 # Load word2vec
 model = Word2Vec.load(PATH + "model_word2vec.model")
 
 
-@app.route("/topic_classification", methods=["GET", "POST"])
+@app.route("/topic_classification", methods=["GET"])
 def topic_classification():
     # # Input file dari hasil sentimen
     # df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
 
-    if request.method == "GET":
-        # Input json dari pengguna
-        with open(PATH + "hasil_sentimen.json", "r", encoding="utf-8") as json_file:
-            json_content = json.load(json_file)
-        df = pd.DataFrame(json_content)
-    if request.method == "POST":
-        input_json = request.json
-        df = pd.DataFrame(input_json)
-    df["text"] = df["text"].astype(str)
+    # Input json dari pengguna
+    with open(PATH + "hasil_sentimen.json", "r", encoding="utf-8") as json_file:
+        json_content = json.load(json_file)
+    df = pd.DataFrame(json_content)
 
     print("\n=== Predicting topic...")
     try:
@@ -93,7 +88,7 @@ def topic_classification():
 
     # return send_file(PATH + "temp.json", as_attachment=True)
 
-# FIRST TO HIT. CREATE PREPROCESSED INPUTS 
+
 @app.route("/predict_sentiment", methods=["POST"])
 def predict_sentiment():
     # # Input file dari pengguna
@@ -168,7 +163,6 @@ def predict_sentiment_ig():
         # df.to_csv(PATH + "hasil_sentimen.csv", index=False)
 
         # Save as json
-        df["username"] = input_json["username"]
         df.to_json(PATH + "hasil_sentimen.json", index=False)
         # df.drop(columns=['vector']).to_json(PATH + "temp.json", index=False)
     except Exception as e:
@@ -180,33 +174,23 @@ def predict_sentiment_ig():
     return send_file(PATH + "hasil_sentimen.json", as_attachment=True)
     # return send_file(PATH + "temp.json", as_attachment=True)
 
-
-@app.route("/analyze_images", methods=["GET", "POST"])
+@app.route("/analyze_images", methods=["GET"])
 def analyze_images():
 
-    if request.method == "GET":
-        # Read input json
-        print("\n=== Reading file")
-        file_name = "ig_post.json"
-        full_file_path = f".{IMAGES_PATH}/{file_name}"
-        with open(full_file_path, "r", encoding="utf-8") as json_file:
-            json_content = json.load(json_file)
-
-        print("\n=== Getting image urls")
-        username = json_content["name"]
-        posts = json_content["posts"]
-        image_paths = []
-        for post in posts:
-            image_paths = image_paths + post["images"]
-
-    if request.method == "POST":
-        json_content = request.json
-        username = json_content["username"]["0"]
-        image_paths = json_content["images"]
-
-        print("\n=== Getting image urls")
+    # Read input json
+    print("\n=== Reading file")
+    file_name = "ig_post.json"
+    full_file_path = f".{IMAGES_PATH}/{file_name}"
+    with open(full_file_path, "r", encoding="utf-8") as json_file:
+        json_content = json.load(json_file)
 
     # getting username image_paths
+    print("\n=== Getting image urls")
+    username = json_content["name"]
+    posts = json_content["posts"]
+    image_paths = []
+    for post in posts:
+        image_paths = image_paths + post["images"]
 
     # # converting image to base64
     # base64_images = list(map(encode_image, image_paths))
@@ -329,20 +313,16 @@ def analyze_images():
 
     return returnAPI(200, "Success", final_response)
 
-@app.route("/topic_modeling", methods=["GET", "POST"])
+@app.route("/topic_modeling", methods=["GET"])
 def topic_modelling():
 
     # # Read preprocessed input file
     # df = pd.read_csv(PATH + "hasil_sentimen.csv", delimiter=",")
 
-    if request.method == "GET":
-        # Read preprocessed json
-        with open(PATH + "hasil_sentimen.json", "r", encoding="utf-8") as json_file:
-            json_content = json.load(json_file)
-        df = pd.DataFrame(json_content)
-    if request.method == "POST":
-        input_json = request.json
-        df = pd.DataFrame(input_json)
+    # Read preprocessed json
+    with open(PATH + "hasil_sentimen.json", "r", encoding="utf-8") as json_file:
+        json_content = json.load(json_file)
+    df = pd.DataFrame(json_content)
 
     # try:
     #     df = df.rename(columns={"caption": "tweet"})
