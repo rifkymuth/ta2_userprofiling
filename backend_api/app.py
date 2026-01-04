@@ -202,7 +202,10 @@ def analyze_images():
     if request.method == "POST":
         json_content = request.json
         username = json_content["username"]["0"]
-        image_paths = json_content["images"]
+        image_paths = []
+        images = json_content["images"]
+        for i in range(len(images)):
+            image_paths = image_paths + images[f"{i}"]
 
         print("\n=== Getting image urls")
 
