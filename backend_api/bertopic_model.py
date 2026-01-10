@@ -34,4 +34,30 @@ def predict_topic(data, stopwords_combined):
     topic_model = FASTopic(6, device='cpu')
     topics, _ = topic_model.fit_transform(data)
 
-    return topics, topic_model
+    # topics = topic_model.get_topic()
+
+    # topics_json = {
+    #     topic_id: [
+    #         {"word": word, "probability": float(prob)} for word, prob in words_probs
+    #     ]
+    #     for topic_id, words_probs in zip(topics, topics.values())
+    # }
+
+    # data = {
+    #     "topics model": topics_json,
+    # }
+
+    topics = []
+    for i in range(6):
+        topics.append(topic_model.get_topic(i))
+    
+    result = {
+        i: [{"word": word, "probability": float(prob)} for word, prob in group]
+        for i, group in enumerate(topics)
+    }
+
+    data = {
+        "topics model": result,
+    }
+
+    return data

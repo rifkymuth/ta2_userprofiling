@@ -67,17 +67,30 @@ def topic_classification():
         print("\n=== Prediction complete!")
 
         #  Save to csv
-        df.to_csv(
-            PATH + "hasil_sentimen_topic_classification.csv",
-            index=False,
-        )
+        if request.method == "GET":
+            df.to_csv(
+                PATH + "hasil_sentimen_topic_classification.csv",
+                index=False,
+            )
 
-        # Save as json
-        df.to_json(
-            PATH + "hasil_sentimen_topic_classification.json",
-            index=False,
-        )
-        # df.drop(columns=['vector']).to_json(PATH + "temp.json", index=False)
+            # Save as json
+            df.to_json(
+                PATH + "hasil_sentimen_topic_classification.json",
+                index=False,
+            )
+            # df.drop(columns=['vector']).to_json(PATH + "temp.json", index=False)
+        if request.method == "POST":
+            df.to_csv(
+                PATH + "hasil_sentimen_topic_classification_temp.csv",
+                index=False,
+            )
+
+            # Save as json
+            df.to_json(
+                PATH + "hasil_sentimen_topic_classification_temp.json",
+                index=False,
+            )
+            # df.drop(columns=['vector']).to_json(PATH + "temp.json", index=False)
 
         print("\n=== Sending file!")
     except Exception as e:
@@ -86,9 +99,12 @@ def topic_classification():
     # return send_file(
     #     PATH + "hasil_sentimen_topic_classification.csv", as_attachment=True
     # )
-
+    if request.method == "GET":
+        return send_file(
+            PATH + "hasil_sentimen_topic_classification.json", as_attachment=True
+        )
     return send_file(
-        PATH + "hasil_sentimen_topic_classification.json", as_attachment=True
+        PATH + "hasil_sentimen_topic_classification_temp.json", as_attachment=True
     )
 
     # return send_file(PATH + "temp.json", as_attachment=True)
@@ -355,7 +371,7 @@ def topic_modelling():
     df["text"] = df["text"].astype(str)
 
     print("\n=== Topic Modeling!!")
-    _, topic_model = predict_topic(df["text"], stopwords_combined)
+    data = predict_topic(df["text"], stopwords_combined)
 
     # topics = topic_model.get_topic()
 
@@ -370,18 +386,71 @@ def topic_modelling():
     #     "topics model": topics_json,
     # }
 
-    topics = []
-    for i in range(6):
-        topics.append(topic_model.get_topic(i))
+    # topics = []
+    # for i in range(6):
+    #     topics.append(topic_model.get_topic(i))
     
-    result = {
-        i: [{"word": word, "probability": float(prob)} for word, prob in group]
-        for i, group in enumerate(topics)
-    }
+    # result = {
+    #     i: [{"word": word, "probability": float(prob)} for word, prob in group]
+    #     for i, group in enumerate(topics)
+    # }
 
-    data = {
-        "topics model": result,
-    }
+    # data = {
+    #     "topics model": result,
+    # }
+    topics_top_words = []
+    for i in range(len(data["topics model"])):
+        topic_top_words = []
+        for j in range(5):
+            topic_top_words.append(data['topics model'][i][j]['word'])
+
+        topics_top_words.append(topic_top_words)
+    print(topics_top_words)
+    
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=[
+            {
+                "role": "system",
+                "content": 
+                """
+                # Identity
+                You are a language model assistant with task to infer a possible topic from a topic model output.
+                Each topic going to have 5 top words and you need to infer the topic behind those words in one sentence. Combine each topic discovered into a list.
+                
+                # Example
+                <user_query>
+                Below is a list of list of words each correspond to a topic discovered through topic modeling. Infer a topic for each list of words to make understanding them easier in one sentence! Give the response in Bahasa Indonesia!
+                [[madrid, bola, latihan, gol, fifa], [grok, ai, gambar, ai artist, chatgpt], ...]
+                </user_query>
+
+                <assistant_response>
+                [{
+                    "topic_no": 0,
+                    "topic_interpretation": Pertandingan bola terutama tekait Madrid pada FIFA,
+                },
+                {
+                    "topic_no": 1,
+                    "topic_interpretation": Gambar-gambar yang dibuat dari AI dan AI artist,
+                }, ...
+                ]
+                </assistant_response>
+                """
+                ,
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": f"""
+                        Below is a list of list of words each correspond to a topic discovered through topic modeling. Infer a topic for each list of words to make understanding them easier in one sentence! Give the response in Bahasa Indonesia!
+                        {topics_top_words}
+                        """
+                    }
+                ],
+            }
+        ],
+    )
+    data["topic_interpretation"] = response.output_text.split("\n")
 
     return returnAPI(200, "Success", data)
 

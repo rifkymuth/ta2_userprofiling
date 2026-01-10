@@ -339,7 +339,7 @@ def topic_classification_indobert_model(data):
             -1: "lain-lain",
             0: "berita dan politik",
             1: "ekonomi",
-            2: "hot",
+            2: "gosip",
             3: "kesehatan",
             4: "olahraga",
             5: "teknologi",
